@@ -46,8 +46,15 @@ if st.session_state.add_trajectory:
         if st.session_state.new_messages:
             with placeholder.container():
                 st.write("Messages to be added:")
-                for msg in st.session_state.new_messages:
-                    st.markdown(f"**{msg['role'].capitalize()}:** {msg['content']}")
+                for idx, msg in enumerate(st.session_state.new_messages):
+                    col_msg, col_btn = st.columns([0.9, 0.1])
+                    with col_msg:
+                        st.markdown(f"**{msg['role'].capitalize()}:** {msg['content']}")
+                    with col_btn:
+                        remove_btn = st.button("❌", key=f"remove_msg_{idx}", help="Remove this message")
+                        if remove_btn:
+                            st.session_state.new_messages.pop(idx)
+                            st.rerun()
 
     if st.button("Submit Messages"):
         if st.session_state.new_messages:
