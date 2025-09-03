@@ -9,14 +9,21 @@ if 'add_trajectory' not in st.session_state:
 with st.empty().container():
     if len(st.session_state.trajectories["turns"]) > 0:
         st.markdown("#### Added Trajectories")
-    for trajectory in st.session_state.trajectories["turns"]:
-        for message in trajectory[0]:
-            st.markdown(f"**{message['role'].capitalize()}:** {message['content']}")
-        if trajectory[1]:
-            if trajectory[1].get("comment"):
-                st.markdown(f"*Feedback:* {trajectory[1]['comment']} (Score: {trajectory[1]['score']})")
-            if trajectory[1].get("revised"):
-                st.markdown(f"*Revised Response:* {trajectory[1]['revised']}")
+    for idx, trajectory in enumerate(st.session_state.trajectories["turns"]):
+        col_traj, col_btn = st.columns([0.95, 0.05])
+        with col_traj:
+            for message in trajectory[0]:
+                st.markdown(f"**{message['role'].capitalize()}:** {message['content']}")
+            if trajectory[1]:
+                if trajectory[1].get("comment"):
+                    st.markdown(f"*Feedback:* {trajectory[1]['comment']} (Score: {trajectory[1]['score']})")
+                if trajectory[1].get("revised"):
+                    st.markdown(f"*Revised Response:* {trajectory[1]['revised']}")
+        with col_btn:
+            remove_traj_btn = st.button("❌", key=f"remove_traj_{idx}", help="Remove this trajectory")
+            if remove_traj_btn:
+                st.session_state.trajectories["turns"].pop(idx)
+                st.rerun()
         st.markdown("---")
 
 if st.session_state.add_trajectory:
