@@ -1,28 +1,59 @@
+import json
+from io import StringIO
 import streamlit as st
 from models import Messages, FeedBack, RevisedResponse, Trajectory
 from prompt_optimizer_controller import PromptOptimizer
+from pydantic import ValidationError
+
 
 if 'add_trajectory' not in st.session_state:
     st.session_state.add_trajectory = False
     st.session_state.trajectories = Trajectory(turns=[])
 
+if 'import_trajectory' not in st.session_state:
+    st.session_state.import_trajectory = False
+
+
+if st.button('Import Trajectory', use_container_width=True):
+    st.session_state.import_trajectory = True
+    st.rerun()
+
+if st.session_state.import_trajectory:
+    # Import using Json file
+    uploaded_file = st.file_uploader("Choose a JSON file", type="json")
+    if st.button("Upload", use_container_width=True):
+        if uploaded_file is not None:
+            # To convert to a string based IO:
+            stringio = StringIO(uploaded_file.getvalue().decode("utf-8"))
+            # To read file as string:
+            string_data = stringio.read()
+            try:
+                st.session_state.trajectories = Trajectory.model_validate_json(string_data)
+                st.session_state.import_trajectory = False
+                st.rerun()
+            except ValidationError as e:
+                st.error(f"Invalid JSON: {e}")
+                st.markdown("### JSON Schema:")
+                st.json(Trajectory.model_json_schema(), expanded=True)
+
+st.markdown("---")
 with st.empty().container():
-    if len(st.session_state.trajectories["turns"]) > 0:
+    if len(st.session_state.trajectories.turns) > 0:
         st.markdown("#### Added Trajectories")
-    for idx, trajectory in enumerate(st.session_state.trajectories["turns"]):
+    for idx, trajectory in enumerate(st.session_state.trajectories.turns):
         col_traj, col_btn = st.columns([0.95, 0.05])
         with col_traj:
             for message in trajectory[0]:
-                st.markdown(f"**{message['role'].capitalize()}:** {message['content']}")
+                st.markdown(f"**{message.role.capitalize()}:** {message.content}")
             if trajectory[1]:
-                if trajectory[1].get("comment"):
-                    st.markdown(f"*Feedback:* {trajectory[1]['comment']} (Score: {trajectory[1]['score']})")
-                if trajectory[1].get("revised"):
-                    st.markdown(f"*Revised Response:* {trajectory[1]['revised']}")
+                if isinstance(trajectory[1], FeedBack):
+                    st.markdown(f"*Feedback:* {trajectory[1].comment} (Score: {trajectory[1].score})")
+                if isinstance(trajectory[1], RevisedResponse):
+                    st.markdown(f"*Revised Response:* {trajectory[1].revised}")
         with col_btn:
             remove_traj_btn = st.button("❌", key=f"remove_traj_{idx}", help="Remove this trajectory")
             if remove_traj_btn:
-                st.session_state.trajectories["turns"].pop(idx)
+                st.session_state.trajectories.turns.pop(idx)
                 st.rerun()
         st.markdown("---")
 
@@ -74,7 +105,7 @@ if st.session_state.add_trajectory:
                 st.error("Please provide either feedback or a revised response, not both.")
                 st.rerun()
             messages_objs = [Messages(role=msg["role"], content=msg["content"]) for msg in st.session_state.new_messages]
-            st.session_state.trajectories["turns"].append((messages_objs, message_improvement))
+            st.session_state.trajectories.turns.append((messages_objs, message_improvement))
             st.session_state.new_messages = []
             st.session_state.add_trajectory = False
             st.rerun()
@@ -82,6 +113,10 @@ if st.session_state.add_trajectory:
 if st.button("Add Trajectory", use_container_width=True, disabled=False if not st.session_state.add_trajectory else True):
     st.session_state.add_trajectory = True
     st.rerun()
+
+if st.button("Export Trajectories as JSON", use_container_width=True, disabled=len(st.session_state.trajectories.turns) == 0):
+    json_string = st.session_state.trajectories.model_dump_json()
+    st.download_button("Download JSON", json_string, "trajectories.json", "application/json")
 
 prompt = st.text_input("Input Prompt", key="input_prompt", placeholder="You are a planetary science expert", disabled=False if not st.session_state.add_trajectory else True)
 if st.button("Generate Prompt", use_container_width=True, disabled=False if not st.session_state.add_trajectory else True):

@@ -1,18 +1,21 @@
-from typing_extensions import TypedDict, Annotated
 
-class Messages(TypedDict):
-    role: Annotated[str, "Role of the message, e.g., 'user' or 'assistant'"]
-    content: Annotated[str, "Content of the message"]
+from typing import List, Optional, Union, Tuple
+from pydantic import BaseModel, Field
 
 
-class FeedBack(TypedDict):
-    score: Annotated[float, "Feedback score ranging from 0 to 1"]
-    comment: Annotated[str, "Feedback comment"]
+class Messages(BaseModel):
+    role: str = Field(..., description="Role of the message sender, either 'user' or 'assistant'")
+    content: str = Field(..., description="Content of the message")
 
 
-class RevisedResponse(TypedDict):
-    revised: Annotated[str, "Revised response content"]
+class FeedBack(BaseModel):
+    score: float = Field(..., description="Feedback score ranging from 0 to 1")
+    comment: str = Field(..., description="Feedback comment")
 
 
-class Trajectory(TypedDict):
-    turns: Annotated[list[tuple[list[Messages], FeedBack | RevisedResponse | None]], "A list of conversation turns"] = []
+class RevisedResponse(BaseModel):
+    revised: str = Field(..., description="Revised response content")
+
+
+class Trajectory(BaseModel):
+    turns: List[Tuple[List[Messages], Optional[Union[FeedBack, RevisedResponse, None]]]] = Field(..., description="A list of conversation turns, each as (messages, feedback/revised/None)")
