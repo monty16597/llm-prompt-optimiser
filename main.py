@@ -4,7 +4,8 @@ import streamlit as st
 from models import Messages, FeedBack, RevisedResponse, Trajectory
 from prompt_optimizer_controller import PromptOptimizer
 from pydantic import ValidationError
-
+from dotenv import load_dotenv
+load_dotenv()
 
 if 'add_trajectory' not in st.session_state:
     st.session_state.add_trajectory = False
@@ -14,11 +15,38 @@ if 'import_trajectory' not in st.session_state:
     st.session_state.import_trajectory = False
 
 
-if st.button('Import Trajectory', use_container_width=True):
+if st.button('Import Messages', use_container_width=True, disabled=st.session_state.import_trajectory):
     st.session_state.import_trajectory = True
     st.rerun()
 
 if st.session_state.import_trajectory:
+    _schema = json.dumps({
+        "turns": [
+            (
+                [
+                    {"role": "user", "content": "What is the capital of France?"},
+                    {"role": "assistant", "content": "The capital of France is Paris."}
+                ],
+                {"comment": "Good response", "score": 0.9}
+            ),
+            (
+                [
+                    {"role": "user", "content": "What is 2 + 2?"},
+                    {"role": "assistant", "content": "2 + 2 equals 4."}
+                ],
+                {"revised": "The sum of 2 and 2 is 4."}
+            ),
+            (
+                [
+                    {"role": "user", "content": "What is the capital of Germany?"},
+                    {"role": "assistant", "content": "The capital of Germany is Berlin."}
+                ],
+                None
+            )
+        ]
+    }, indent=4)
+    example = st.expander("Example", expanded=False)
+    example.write(f"```json\n{_schema}\n```")
     # Import using Json file
     uploaded_file = st.file_uploader("Choose a JSON file", type="json")
     if st.button("Upload", use_container_width=True):
@@ -39,7 +67,7 @@ if st.session_state.import_trajectory:
 st.markdown("---")
 with st.empty().container():
     if len(st.session_state.trajectories.turns) > 0:
-        st.markdown("#### Added Trajectories")
+        st.markdown("#### Added Messages")
     for idx, trajectory in enumerate(st.session_state.trajectories.turns):
         col_traj, col_btn = st.columns([0.95, 0.05])
         with col_traj:
@@ -110,14 +138,16 @@ if st.session_state.add_trajectory:
             st.session_state.add_trajectory = False
             st.rerun()
 
-if st.button("Add Trajectory", use_container_width=True, disabled=False if not st.session_state.add_trajectory else True):
+if st.button("Add Messages", use_container_width=True, disabled=False if not st.session_state.add_trajectory else True):
     st.session_state.add_trajectory = True
     st.rerun()
 
-if st.button("Export Trajectories as JSON", use_container_width=True, disabled=len(st.session_state.trajectories.turns) == 0):
+st.markdown("---")
+if st.button("Export Messages as JSON", use_container_width=True, disabled=len(st.session_state.trajectories.turns) == 0):
     json_string = st.session_state.trajectories.model_dump_json()
     st.download_button("Download JSON", json_string, "trajectories.json", "application/json")
 
+st.markdown("---")
 prompt = st.text_input("Input Prompt", key="input_prompt", placeholder="You are a planetary science expert", disabled=False if not st.session_state.add_trajectory else True)
 if st.button("Generate Prompt", use_container_width=True, disabled=False if not st.session_state.add_trajectory else True):
     st.session_state.generated_prompt = prompt
@@ -129,7 +159,7 @@ if st.session_state.generated_prompt:
     st.markdown("### Generated Prompt")
     text = st.empty()
     text.write("Generating....")
-    prompt_optimizer = PromptOptimizer(trajectories=st.session_state.trajectories["turns"])
+    prompt_optimizer = PromptOptimizer(trajectories=st.session_state.trajectories.model_dump().get("turns", []))
     resp = prompt_optimizer.optimize(st.session_state.generated_prompt)
     text.empty()
     text.write(resp)
