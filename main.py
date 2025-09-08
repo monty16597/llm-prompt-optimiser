@@ -9,7 +9,7 @@ load_dotenv()
 
 if 'add_trajectory' not in st.session_state:
     st.session_state.add_trajectory = False
-    st.session_state.trajectories = Trajectory(turns=[])
+    st.session_state.trajectories = Trajectory(messages=[])
 
 if 'import_trajectory' not in st.session_state:
     st.session_state.import_trajectory = False
@@ -21,7 +21,7 @@ if st.button('Import Messages', use_container_width=True, disabled=st.session_st
 
 if st.session_state.import_trajectory:
     _schema = json.dumps({
-        "turns": [
+        "messages": [
             (
                 [
                     {"role": "user", "content": "What is the capital of France?"},
@@ -66,9 +66,9 @@ if st.session_state.import_trajectory:
 
 st.markdown("---")
 with st.empty().container():
-    if len(st.session_state.trajectories.turns) > 0:
+    if len(st.session_state.trajectories.messages) > 0:
         st.markdown("#### Added Messages")
-    for idx, trajectory in enumerate(st.session_state.trajectories.turns):
+    for idx, trajectory in enumerate(st.session_state.trajectories.messages):
         col_traj, col_btn = st.columns([0.95, 0.05])
         with col_traj:
             for message in trajectory[0]:
@@ -81,7 +81,7 @@ with st.empty().container():
         with col_btn:
             remove_traj_btn = st.button("❌", key=f"remove_traj_{idx}", help="Remove this trajectory")
             if remove_traj_btn:
-                st.session_state.trajectories.turns.pop(idx)
+                st.session_state.trajectories.messages.pop(idx)
                 st.rerun()
         st.markdown("---")
 
@@ -133,7 +133,7 @@ if st.session_state.add_trajectory:
                 st.error("Please provide either feedback or a revised response, not both.")
                 st.rerun()
             messages_objs = [Messages(role=msg["role"], content=msg["content"]) for msg in st.session_state.new_messages]
-            st.session_state.trajectories.turns.append((messages_objs, message_improvement))
+            st.session_state.trajectories.messages.append((messages_objs, message_improvement))
             st.session_state.new_messages = []
             st.session_state.add_trajectory = False
             st.rerun()
@@ -143,23 +143,24 @@ if st.button("Add Messages", use_container_width=True, disabled=False if not st.
     st.rerun()
 
 st.markdown("---")
-if st.button("Export Messages as JSON", use_container_width=True, disabled=len(st.session_state.trajectories.turns) == 0):
+if st.button("Export Messages as JSON", use_container_width=True, disabled=len(st.session_state.trajectories.messages) == 0):
     json_string = st.session_state.trajectories.model_dump_json()
     st.download_button("Download JSON", json_string, "trajectories.json", "application/json")
 
 st.markdown("---")
-prompt = st.text_input("Input Prompt", key="input_prompt", placeholder="You are a planetary science expert", disabled=False if not st.session_state.add_trajectory else True)
-if st.button("Generate Prompt", use_container_width=True, disabled=False if not st.session_state.add_trajectory else True):
-    st.session_state.generated_prompt = prompt
+prompt = st.text_input("Your Prompt", key="input_prompt", placeholder="You are a planetary science expert", disabled=False if not st.session_state.add_trajectory else True)
+text = st.empty()
+if st.button("Generate Optimized Prompt", use_container_width=True,):
+    text.empty()
+    text.write("Generating....")
+    prompt_optimizer = PromptOptimizer(trajectories=st.session_state.trajectories.model_dump().get("messages", []))
+    st.session_state.generated_prompt = prompt_optimizer.optimize(prompt)
 
 if "generated_prompt" not in st.session_state:
     st.session_state.generated_prompt = None
 
+
 if st.session_state.generated_prompt:
-    st.markdown("### Generated Prompt")
-    text = st.empty()
-    text.write("Generating....")
-    prompt_optimizer = PromptOptimizer(trajectories=st.session_state.trajectories.model_dump().get("turns", []))
-    resp = prompt_optimizer.optimize(st.session_state.generated_prompt)
     text.empty()
-    text.write(resp)
+    text.markdown("### Generated Prompt")
+    text.write(st.session_state.generated_prompt)

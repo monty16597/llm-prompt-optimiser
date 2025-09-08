@@ -18,4 +18,4 @@ class RevisedResponse(BaseModel):
 
 
 class Trajectory(BaseModel):
-    turns: List[Tuple[List[Messages], Optional[Union[FeedBack, RevisedResponse, None]]]] = Field(..., description="A list of conversation turns, each as (messages, feedback/revised/None)")
+    messages: List[Tuple[List[Messages], Optional[Union[FeedBack, RevisedResponse, None]]]] = Field(..., description="A list of conversation turns, each as (messages, feedback/revised/None)")
